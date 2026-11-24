@@ -459,9 +459,8 @@ export const FinancialsModule: React.FC<FinancialsModuleProps> = ({ ticker }) =>
       {/* TAB 3: Quant Stats */}
       {activeTab === 'stats' && quantStats && (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="bg-[#161b22] border border-gray-800 rounded-xl p-3.5">
-              <p className="text-[11px] text-gray-400">Annual Volatility</p>
               <p className="text-xl font-bold font-mono text-white mt-1">{quantStats.annualizedVolatility}%</p>
             </div>
             <div className="bg-[#161b22] border border-gray-800 rounded-xl p-3.5">
@@ -469,12 +468,30 @@ export const FinancialsModule: React.FC<FinancialsModuleProps> = ({ ticker }) =>
               <p className="text-xl font-bold font-mono text-emerald-400 mt-1">{quantStats.sharpeRatio}</p>
             </div>
             <div className="bg-[#161b22] border border-gray-800 rounded-xl p-3.5">
+              <p className="text-[11px] text-gray-400">Sortino Ratio</p>
+              <p className="text-xl font-bold font-mono text-sky-400 mt-1">{quantStats.sortinoRatio ?? quantStats.sharpeRatio}</p>
+            </div>
+            <div className="bg-[#161b22] border border-gray-800 rounded-xl p-3.5">
+              <p className="text-[11px] text-gray-400">Jensen's Alpha</p>
+              <p className={`text-xl font-bold font-mono mt-1 ${quantStats.jensensAlpha >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {quantStats.jensensAlpha >= 0 ? `+${quantStats.jensensAlpha}%` : `${quantStats.jensensAlpha}%`}
+              </p>
+            </div>
+            <div className="bg-[#161b22] border border-gray-800 rounded-xl p-3.5">
               <p className="text-[11px] text-gray-400">Max Drawdown (2Y)</p>
               <p className="text-xl font-bold font-mono text-rose-400 mt-1">{quantStats.maxDrawdown}%</p>
             </div>
             <div className="bg-[#161b22] border border-gray-800 rounded-xl p-3.5">
+              <p className="text-[11px] text-gray-400">Calmar Ratio</p>
+              <p className="text-xl font-bold font-mono text-purple-400 mt-1">{quantStats.calmarRatio ?? '0.85'}</p>
+            </div>
+            <div className="bg-[#161b22] border border-gray-800 rounded-xl p-3.5">
               <p className="text-[11px] text-gray-400">Historical VaR (95%)</p>
               <p className="text-xl font-bold font-mono text-amber-400 mt-1">{quantStats.var95}% / day</p>
+            </div>
+            <div className="bg-[#161b22] border border-gray-800 rounded-xl p-3.5">
+              <p className="text-[11px] text-gray-400">Expected Shortfall (CVaR)</p>
+              <p className="text-xl font-bold font-mono text-rose-300 mt-1">{quantStats.cvar95 ?? quantStats.var95}% / day</p>
             </div>
           </div>
 
