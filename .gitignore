@@ -1,0 +1,10 @@
+target
+.next
+dist
+node_modules
+*.pyc
+__pycache__
+venv/
+.env
+cache.db
+.pytest_cache
