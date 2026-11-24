@@ -52,6 +52,44 @@ export default function App() {
 
   // Search input state for horizontal top search bar
   const [inlineSearch, setInlineSearch] = useState('');
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+
+  const searchCatalog = [
+    { symbol: 'RELIANCE', name: 'Reliance Industries Ltd.', sector: 'Energy', market: 'NSE' },
+    { symbol: 'TCS', name: 'Tata Consultancy Services', sector: 'Technology', market: 'NSE' },
+    { symbol: 'HDFCBANK', name: 'HDFC Bank Ltd.', sector: 'Financials', market: 'NSE' },
+    { symbol: 'INFY', name: 'Infosys Ltd.', sector: 'Technology', market: 'NSE' },
+    { symbol: 'ICICIBANK', name: 'ICICI Bank Ltd.', sector: 'Financials', market: 'NSE' },
+    { symbol: 'ITC', name: 'ITC Ltd.', sector: 'Consumer Staples', market: 'NSE' },
+    { symbol: 'LT', name: 'Larsen & Toubro Ltd.', sector: 'Capital Goods', market: 'NSE' },
+    { symbol: 'BHARTIARTL', name: 'Bharti Airtel Ltd.', sector: 'Telecom', market: 'NSE' },
+    { symbol: 'SBIN', name: 'State Bank of India', sector: 'Financials', market: 'NSE' },
+    { symbol: 'TATAMOTORS', name: 'Tata Motors Ltd.', sector: 'Automotive', market: 'NSE' },
+    { symbol: 'AAPL', name: 'Apple Inc.', sector: 'Technology', market: 'US' },
+    { symbol: 'MSFT', name: 'Microsoft Corporation', sector: 'Technology', market: 'US' },
+    { symbol: 'NVDA', name: 'NVIDIA Corporation', sector: 'Technology', market: 'US' },
+    { symbol: 'TSLA', name: 'Tesla Inc.', sector: 'Consumer Discretionary', market: 'US' },
+    { symbol: 'GOOGL', name: 'Alphabet Inc.', sector: 'Technology', market: 'US' },
+    { symbol: 'AMZN', name: 'Amazon.com Inc.', sector: 'Consumer Discretionary', market: 'US' },
+    { symbol: 'GOLD', name: 'Gold Futures (COMEX)', sector: 'Precious Metals', market: 'METALS' },
+    { symbol: 'SILVER', name: 'Silver Futures', sector: 'Precious Metals', market: 'METALS' },
+    { symbol: 'COPPER', name: 'Copper Futures', sector: 'Base Metals', market: 'METALS' },
+    { symbol: 'CRUDE', name: 'Crude Oil WTI', sector: 'Energy', market: 'METALS' },
+    { symbol: 'BTCUSDT', name: 'Bitcoin Spot', sector: 'Layer 1 Crypto', market: 'CRYPTO' },
+    { symbol: 'ETHUSDT', name: 'Ethereum Spot', sector: 'Smart Contracts', market: 'CRYPTO' },
+    { symbol: 'SOLUSDT', name: 'Solana Spot', sector: 'High-Throughput L1', market: 'CRYPTO' },
+    { symbol: 'BNBUSDT', name: 'BNB Coin', sector: 'Exchange Ecosystem', market: 'CRYPTO' },
+    { symbol: 'XRPUSDT', name: 'XRP Ledger', sector: 'Payments', market: 'CRYPTO' },
+  ];
+
+  const searchSuggestions = inlineSearch.trim()
+    ? searchCatalog.filter(
+        (item) =>
+          item.symbol.toLowerCase().includes(inlineSearch.toLowerCase()) ||
+          item.name.toLowerCase().includes(inlineSearch.toLowerCase()) ||
+          item.sector.toLowerCase().includes(inlineSearch.toLowerCase())
+      ).slice(0, 7)
+    : [];
 
   const loadAssetData = async (sym: string, mkt = market) => {
     setLoading(true);
@@ -196,21 +234,34 @@ export default function App() {
         </div>
       </div>
 
-      {/* 2. Prominent Horizontal Search Bar (Positioned right above the Navigation Menu) */}
-      <div className="px-6 pt-4 pb-2 max-w-7xl mx-auto w-full">
+      {/* 2. Prominent Horizontal Search Bar with Auto-Suggestions (Positioned right above the Navigation Menu) */}
+      <div className="px-6 pt-4 pb-2 max-w-7xl mx-auto w-full relative">
         <div className="relative w-full">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
             value={inlineSearch}
-            onChange={(e) => setInlineSearch(e.target.value)}
+            onChange={(e) => {
+              setInlineSearch(e.target.value);
+              setShowSearchDropdown(true);
+            }}
+            onFocus={() => {
+              if (inlineSearch.trim()) setShowSearchDropdown(true);
+            }}
+            onBlur={() => {
+              // slight delay so clicks on dropdown items register
+              setTimeout(() => setShowSearchDropdown(false), 200);
+            }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && inlineSearch.trim()) {
                 handleSelectTicker(inlineSearch.trim().toUpperCase());
                 setInlineSearch('');
+                setShowSearchDropdown(false);
+              } else if (e.key === 'Escape') {
+                setShowSearchDropdown(false);
               }
             }}
-            placeholder="Search all Indian, US, Commodities, and Crypto assets (Press Enter to load, or ⌘K for palette)..."
+            placeholder="Search all Indian, US, Commodities, and Crypto assets (type to see auto-suggestions)..."
             className="w-full bg-[#161b22] border border-gray-800 rounded-xl pl-11 pr-20 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500/60 transition-colors shadow-inner font-sans"
           />
           <button
@@ -220,6 +271,40 @@ export default function App() {
             ⌘K
           </button>
         </div>
+
+        {/* Live Auto-Suggestions Dropdown */}
+        {showSearchDropdown && searchSuggestions.length > 0 && (
+          <div className="absolute left-6 right-6 top-[calc(100%-8px)] z-50 bg-[#161b22] border border-gray-800 rounded-xl shadow-2xl overflow-hidden mt-1 divide-y divide-gray-800/60 max-w-7xl">
+            <div className="px-3 py-1.5 bg-[#0d1117] text-[10px] font-mono text-gray-400 uppercase tracking-wider flex justify-between">
+              <span>Matching Instruments ({searchSuggestions.length})</span>
+              <span>Press Enter or Click to View</span>
+            </div>
+            {searchSuggestions.map((item) => (
+              <div
+                key={item.symbol}
+                onMouseDown={() => {
+                  handleSelectTicker(item.symbol);
+                  setInlineSearch('');
+                  setShowSearchDropdown(false);
+                }}
+                className="px-4 py-2.5 hover:bg-zinc-800/80 cursor-pointer flex items-center justify-between text-xs transition-colors"
+              >
+                <div className="flex items-center space-x-3">
+                  <span className="font-mono font-bold text-white">{item.symbol}</span>
+                  <span className="text-gray-400">{item.name}</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#0d1117] text-gray-400 border border-gray-800">
+                    {item.sector}
+                  </span>
+                  <span className="text-[10px] font-mono text-emerald-400 font-semibold">
+                    {item.market}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* 3. Clean Header & Sorted Navigation Tabs */}
