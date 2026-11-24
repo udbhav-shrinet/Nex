@@ -3,6 +3,7 @@ import {
   fetchQuote,
   fetchPriceHistory,
   fetchCryptoSpot,
+  fetchTreemapAndMovers,
   StockQuote,
   PricePoint,
 } from './services/api';
@@ -13,28 +14,45 @@ import { FinancialsModule } from './modules/FinancialsModule';
 import { LiveBoardModule } from './modules/LiveBoardModule';
 import { ModelLabModule } from './modules/ModelLabModule';
 import { NewsChainModule } from './modules/NewsChainModule';
+import { ComparativeModule } from './modules/ComparativeModule';
+import { AccountsModule } from './modules/AccountsModule';
+import { EconomicsModule } from './modules/EconomicsModule';
 import {
   TrendingUp,
   BarChart2,
   Sparkles,
   Newspaper,
+  Scale,
+  FileText,
+  Globe,
   Search,
-  Coins,
-  ShieldCheck,
+  Sun,
+  Moon,
+  Eye,
+  SlidersHorizontal,
 } from 'lucide-react';
 
 export default function App() {
-  const [activeModule, setActiveModule] = useState<'liveboard' | 'financials' | 'modellab' | 'newschain'>('liveboard');
+  const [activeModule, setActiveModule] = useState<
+    'liveboard' | 'financials' | 'modellab' | 'newschain' | 'comparative' | 'accounts' | 'economics'
+  >('liveboard');
+
   const [selectedTicker, setSelectedTicker] = useState('RELIANCE');
   const [market, setMarket] = useState<'NSE' | 'US' | 'METALS' | 'CRYPTO'>('NSE');
   const [timeframe, setTimeframe] = useState('1Y');
   const [quote, setQuote] = useState<StockQuote | null>(null);
   const [history, setHistory] = useState<PricePoint[]>([]);
-  const [cryptoSpot, setCryptoSpot] = useState<any[]>([]);
+  const [tickerRibbon, setTickerRibbon] = useState<any[]>([]);
   const [isCommandOpen, setIsCommandOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Load active ticker data
+  // Minimal Theme & Night Light Toggles
+  const [theme, setTheme] = useState<'dark' | 'obsidian' | 'slate'>('dark');
+  const [nightLight, setNightLight] = useState(false);
+
+  // Search input state for horizontal top search bar
+  const [inlineSearch, setInlineSearch] = useState('');
+
   const loadAssetData = async (sym: string, mkt = market) => {
     setLoading(true);
     try {
@@ -55,48 +73,71 @@ export default function App() {
     loadAssetData(selectedTicker, market);
   }, [selectedTicker, timeframe, market]);
 
+  // Dynamic marquee based on selected market
   useEffect(() => {
-    fetchCryptoSpot().then(setCryptoSpot).catch(console.error);
-  }, []);
+    if (market === 'CRYPTO') {
+      fetchCryptoSpot().then(setTickerRibbon).catch(console.error);
+    } else {
+      fetchTreemapAndMovers().then((res) => {
+        if (market === 'US') {
+          setTickerRibbon(res?.marketCatalog?.US || []);
+        } else if (market === 'METALS') {
+          setTickerRibbon(res?.marketCatalog?.METALS || []);
+        } else {
+          setTickerRibbon(res?.treemap || []);
+        }
+      }).catch(console.error);
+    }
+  }, [market]);
 
   const handleSelectTicker = (sym: string) => {
     let detectedMarket: 'NSE' | 'US' | 'METALS' | 'CRYPTO' = 'NSE';
     const s = sym.toUpperCase();
     if (s.includes('USDT') || s === 'BTC' || s === 'ETH') {
       detectedMarket = 'CRYPTO';
-    } else if (['GOLD', 'SILVER', 'COPPER', 'CRUDE'].includes(s)) {
+    } else if (['GOLD', 'SILVER', 'COPPER', 'CRUDE', 'PLATINUM'].includes(s)) {
       detectedMarket = 'METALS';
-    } else if (['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'TSLA'].includes(s)) {
+    } else if (['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'TSLA', 'AMZN'].includes(s)) {
       detectedMarket = 'US';
     }
     setMarket(detectedMarket);
     setSelectedTicker(sym);
   };
 
+  const themeBg =
+    theme === 'obsidian' ? 'bg-[#090b0e]' : theme === 'slate' ? 'bg-[#0f172a]' : 'bg-[#0d1117]';
+
   return (
-    <div className="min-h-screen bg-[#0d1117] text-gray-200 font-sans flex flex-col selection:bg-zinc-700">
-      {/* 1. Minimal Top Marquee */}
-      <div className="bg-[#161b22] border-b border-gray-800 px-4 py-2 flex items-center justify-between text-xs overflow-x-auto whitespace-nowrap gap-6">
-        <div className="flex items-center space-x-6">
-          <div className="flex items-center space-x-2">
+    <div
+      className={`min-h-screen ${themeBg} text-gray-200 font-sans flex flex-col selection:bg-zinc-700 transition-colors duration-300 ${
+        nightLight ? 'sepia-[0.18]' : ''
+      }`}
+    >
+      {/* 1. Dynamic Smooth Continuous Top Marquee (Changes based on active market) */}
+      <div className="bg-[#161b22] border-b border-gray-800 px-4 py-2 flex items-center justify-between text-xs overflow-hidden whitespace-nowrap gap-6">
+        <div className="flex items-center space-x-6 overflow-hidden">
+          <div className="flex items-center space-x-2 shrink-0">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span className="font-semibold text-white tracking-wide">NEX</span>
-            <span className="text-[10px] text-gray-500 font-mono">v1.0</span>
+            <span className="text-[10px] text-gray-500 font-mono">v1.3</span>
           </div>
 
-          {/* Quick market indicators */}
-          <div className="flex items-center space-x-5 font-mono text-[11px]">
-            {cryptoSpot.slice(0, 5).map((c) => {
-              const isPos = c.changePercent >= 0;
+          {/* Continuous scrolling marquee */}
+          <div className="flex items-center space-x-8 font-mono text-[11px] animate-marquee">
+            {tickerRibbon.map((c, i) => {
+              const isPos = (c.changePercent ?? 0) >= 0;
               return (
                 <div
-                  key={c.symbol}
+                  key={`${c.symbol}-${i}`}
                   onClick={() => handleSelectTicker(c.symbol)}
-                  className="flex items-center space-x-1.5 cursor-pointer hover:text-white transition-colors"
+                  className="flex items-center space-x-1.5 cursor-pointer hover:text-white transition-colors shrink-0"
                 >
-                  <span className="text-gray-400 font-medium">{c.coin}</span>
-                  <span className="text-white">${c.price > 10 ? c.price.toLocaleString() : c.price}</span>
-                  <span className={isPos ? 'text-emerald-400' : 'text-rose-400'}>
+                  <span className="text-gray-400 font-bold">{c.coin || c.symbol}</span>
+                  <span className="text-white">
+                    {market === 'NSE' ? '₹' : '$'}
+                    {c.price > 10 ? c.price?.toLocaleString() : c.price}
+                  </span>
+                  <span className={isPos ? 'text-emerald-400 font-semibold' : 'text-rose-400 font-semibold'}>
                     {isPos ? '+' : ''}{c.changePercent}%
                   </span>
                 </div>
@@ -105,8 +146,8 @@ export default function App() {
           </div>
         </div>
 
-        {/* Global Search & Market Toggles */}
-        <div className="flex items-center space-x-3">
+        {/* Market Category Selector & Aesthetic Theme Switcher */}
+        <div className="flex items-center space-x-3 shrink-0">
           <div className="flex items-center bg-[#0d1117] border border-gray-800 rounded-lg p-0.5 text-[11px] font-mono">
             {(['NSE', 'US', 'METALS', 'CRYPTO'] as const).map((m) => (
               <button
@@ -127,59 +168,129 @@ export default function App() {
             ))}
           </div>
 
+          {/* Theme Palette & Night Light Toggles */}
+          <div className="flex items-center space-x-1 bg-[#0d1117] border border-gray-800 rounded-lg p-1">
+            <button
+              title="Obsidian Dark"
+              onClick={() => setTheme('obsidian')}
+              className={`w-3.5 h-3.5 rounded-full bg-black border ${theme === 'obsidian' ? 'border-emerald-400' : 'border-gray-700'}`}
+            />
+            <button
+              title="Classic Dark"
+              onClick={() => setTheme('dark')}
+              className={`w-3.5 h-3.5 rounded-full bg-[#161b22] border ${theme === 'dark' ? 'border-emerald-400' : 'border-gray-700'}`}
+            />
+            <button
+              title="Slate Blue"
+              onClick={() => setTheme('slate')}
+              className={`w-3.5 h-3.5 rounded-full bg-[#1e293b] border ${theme === 'slate' ? 'border-emerald-400' : 'border-gray-700'}`}
+            />
+            <button
+              title="Night Light (Warm Filter)"
+              onClick={() => setNightLight(!nightLight)}
+              className={`ml-1 text-xs p-0.5 rounded ${nightLight ? 'text-amber-400' : 'text-gray-500 hover:text-gray-300'}`}
+            >
+              <Eye size={12} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. Prominent Horizontal Search Bar (Positioned right above the Navigation Menu) */}
+      <div className="px-6 pt-4 pb-2 max-w-7xl mx-auto w-full">
+        <div className="relative w-full">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            value={inlineSearch}
+            onChange={(e) => setInlineSearch(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && inlineSearch.trim()) {
+                handleSelectTicker(inlineSearch.trim().toUpperCase());
+                setInlineSearch('');
+              }
+            }}
+            placeholder="Search all Indian, US, Commodities, and Crypto assets (Press Enter to load, or ⌘K for palette)..."
+            className="w-full bg-[#161b22] border border-gray-800 rounded-xl pl-11 pr-20 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500/60 transition-colors shadow-inner font-sans"
+          />
           <button
             onClick={() => setIsCommandOpen(true)}
-            className="flex items-center space-x-2 bg-[#0d1117] hover:bg-gray-800 px-3 py-1.5 rounded-lg text-xs text-gray-300 border border-gray-800 transition-colors"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono px-2 py-0.5 rounded bg-[#0d1117] text-gray-400 border border-gray-800 hover:text-white"
           >
-            <Search size={13} className="text-gray-400" />
-            <span>Search all assets</span>
-            <kbd className="text-[10px] bg-zinc-800 px-1 rounded font-mono text-gray-400">⌘K</kbd>
+            ⌘K
           </button>
         </div>
       </div>
 
-      {/* 2. Clean Header & Navigation */}
-      <header className="bg-[#161b22] border-b border-gray-800 px-6 py-3.5 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center space-x-2 text-xs">
+      {/* 3. Clean Header & Sorted Navigation Tabs */}
+      <header className="bg-[#161b22] border-b border-gray-800 px-6 py-3 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center space-x-1.5 text-xs">
           <button
             onClick={() => setActiveModule('liveboard')}
-            className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg font-medium transition-colors ${
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg font-medium transition-colors ${
               activeModule === 'liveboard' ? 'bg-zinc-800 text-white font-semibold' : 'text-gray-400 hover:text-white'
             }`}
           >
-            <TrendingUp size={14} />
+            <TrendingUp size={13} />
             <span>Live Board</span>
           </button>
           <button
             onClick={() => setActiveModule('financials')}
-            className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg font-medium transition-colors ${
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg font-medium transition-colors ${
               activeModule === 'financials' ? 'bg-zinc-800 text-white font-semibold' : 'text-gray-400 hover:text-white'
             }`}
           >
-            <BarChart2 size={14} />
+            <BarChart2 size={13} />
             <span>Financials & Ratios</span>
           </button>
           <button
+            onClick={() => setActiveModule('accounts')}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg font-medium transition-colors ${
+              activeModule === 'accounts' ? 'bg-zinc-800 text-white font-semibold' : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <FileText size={13} />
+            <span>Accounts & Ledger</span>
+          </button>
+          <button
+            onClick={() => setActiveModule('comparative')}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg font-medium transition-colors ${
+              activeModule === 'comparative' ? 'bg-zinc-800 text-white font-semibold' : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <Scale size={13} />
+            <span>Comparative</span>
+          </button>
+          <button
             onClick={() => setActiveModule('modellab')}
-            className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg font-medium transition-colors ${
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg font-medium transition-colors ${
               activeModule === 'modellab' ? 'bg-zinc-800 text-white font-semibold' : 'text-gray-400 hover:text-white'
             }`}
           >
-            <Sparkles size={14} />
+            <Sparkles size={13} />
             <span>Model Lab (ML)</span>
           </button>
           <button
             onClick={() => setActiveModule('newschain')}
-            className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg font-medium transition-colors ${
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg font-medium transition-colors ${
               activeModule === 'newschain' ? 'bg-zinc-800 text-white font-semibold' : 'text-gray-400 hover:text-white'
             }`}
           >
-            <Newspaper size={14} />
-            <span>News Chain</span>
+            <Newspaper size={13} />
+            <span>News Flow Graph</span>
+          </button>
+          <button
+            onClick={() => setActiveModule('economics')}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg font-medium transition-colors ${
+              activeModule === 'economics' ? 'bg-zinc-800 text-white font-semibold' : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <Globe size={13} />
+            <span>Economics</span>
           </button>
         </div>
 
-        {/* Active Asset Strip */}
+        {/* Active Asset Header Strip */}
         {quote && (
           <div className="flex items-center space-x-5">
             <div>
@@ -203,9 +314,9 @@ export default function App() {
         )}
       </header>
 
-      {/* 3. Hero Visualizer Strip */}
+      {/* 4. Hero Visualizer Strip: Shared Chart & Range Indicators */}
       {quote && (
-        <div className="px-6 pt-6 pb-2 space-y-4 max-w-7xl mx-auto w-full">
+        <div className="px-6 pt-5 pb-2 space-y-4 max-w-7xl mx-auto w-full">
           <SharedChart
             data={history}
             timeframe={timeframe}
@@ -225,7 +336,7 @@ export default function App() {
         </div>
       )}
 
-      {/* 4. Active Plugin Module Content */}
+      {/* 5. Active Plugin Module Content */}
       <main className="flex-1 px-6 py-4 max-w-7xl mx-auto w-full">
         {activeModule === 'liveboard' && (
           <LiveBoardModule onSelectTicker={handleSelectTicker} />
@@ -233,15 +344,24 @@ export default function App() {
         {activeModule === 'financials' && (
           <FinancialsModule ticker={selectedTicker} />
         )}
+        {activeModule === 'accounts' && (
+          <AccountsModule ticker={selectedTicker} />
+        )}
+        {activeModule === 'comparative' && (
+          <ComparativeModule primaryTicker={selectedTicker} />
+        )}
         {activeModule === 'modellab' && (
           <ModelLabModule ticker={selectedTicker} />
         )}
         {activeModule === 'newschain' && (
           <NewsChainModule ticker={selectedTicker} />
         )}
+        {activeModule === 'economics' && (
+          <EconomicsModule />
+        )}
       </main>
 
-      {/* 5. Command Palette Modal */}
+      {/* 6. Command Palette Modal */}
       <CommandPalette
         isOpen={isCommandOpen}
         onClose={() => setIsCommandOpen(false)}
@@ -249,12 +369,12 @@ export default function App() {
         onSwitchModule={(m: any) => setActiveModule(m)}
       />
 
-      {/* 6. Minimal Footer */}
+      {/* 7. Minimal Footer */}
       <footer className="border-t border-gray-800 px-6 py-4 text-xs text-gray-500 flex flex-col sm:flex-row items-center justify-between gap-2">
         <div className="flex items-center space-x-2">
           <span>Nex Terminal</span>
           <span>•</span>
-          <span>Real Quantitative Analytics Engine</span>
+          <span>Authentic Institutional Financial System</span>
           <span>•</span>
           <span className="text-emerald-400">Zero Paid APIs</span>
         </div>

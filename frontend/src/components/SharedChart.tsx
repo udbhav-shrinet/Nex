@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -11,6 +11,7 @@ import {
   CartesianGrid,
 } from 'recharts';
 import { PricePoint } from '../services/api';
+import { Pencil, Slash, Eraser, CandlestickChart, Activity } from 'lucide-react';
 
 interface SharedChartProps {
   data: PricePoint[];
@@ -19,16 +20,30 @@ interface SharedChartProps {
   currencySymbol?: string;
 }
 
+interface DrawnElement {
+  id: string;
+  type: 'line' | 'pencil';
+  points: { x: number; y: number }[];
+}
+
 export const SharedChart: React.FC<SharedChartProps> = ({
   data,
   timeframe,
   onTimeframeChange,
   currencySymbol = '₹',
 }) => {
+  const [chartMode, setChartMode] = useState<'area' | 'candlestick'>('area');
   const [showMA20, setShowMA20] = useState(true);
   const [showMA50, setShowMA50] = useState(false);
   const [showMA200, setShowMA200] = useState(false);
   const [showVolume, setShowVolume] = useState(true);
+
+  // Drawing Tools State (Pencil, Trendline, Eraser)
+  const [activeTool, setActiveTool] = useState<'none' | 'pencil' | 'line' | 'eraser'>('none');
+  const [drawings, setDrawings] = useState<DrawnElement[]>([]);
+  const [currentPoints, setCurrentPoints] = useState<{ x: number; y: number }[]>([]);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const svgRef = useRef<SVGSVGElement | null>(null);
 
   const timeframes = ['1D', '1W', '1M', '3M', '1Y', '5Y'];
 
@@ -36,11 +51,86 @@ export const SharedChart: React.FC<SharedChartProps> = ({
   const maxPrice = Math.max(...data.map((d) => d.high || d.close).filter(Boolean));
   const padding = (maxPrice - minPrice) * 0.05 || 1;
 
+  // Custom Candlestick rendering shape
+  const CandlestickBar = (props: any) => {
+    const { x, y, width, height, payload } = props;
+    if (!payload || payload.open === undefined || payload.close === undefined) return null;
+
+    const isUp = payload.close >= payload.open;
+    const color = isUp ? '#10b981' : '#f43f5e';
+    const bodyHeight = Math.max(Math.abs(height), 2);
+    const wickX = x + width / 2;
+
+    return (
+      <g>
+        {/* Wick line */}
+        <line
+          x1={wickX}
+          y1={y - 8}
+          x2={wickX}
+          y2={y + bodyHeight + 8}
+          stroke={color}
+          strokeWidth={1.5}
+        />
+        {/* Real candle body */}
+        <rect
+          x={x + 2}
+          y={isUp ? y : y}
+          width={Math.max(width - 4, 3)}
+          height={bodyHeight}
+          fill={color}
+          rx={1}
+        />
+      </g>
+    );
+  };
+
+  // Drawing Canvas Mouse Handlers
+  const handleMouseDown = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (activeTool === 'none' || activeTool === 'eraser') return;
+    const rect = svgRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    setIsDrawing(true);
+    setCurrentPoints([{ x, y }]);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (!isDrawing) return;
+    const rect = svgRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    if (activeTool === 'pencil') {
+      setCurrentPoints((prev) => [...prev, { x, y }]);
+    } else if (activeTool === 'line' && currentPoints.length > 0) {
+      setCurrentPoints([currentPoints[0], { x, y }]);
+    }
+  };
+
+  const handleMouseUp = () => {
+    if (!isDrawing) return;
+    setIsDrawing(false);
+    if (currentPoints.length > 1) {
+      setDrawings((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          type: activeTool === 'line' ? 'line' : 'pencil',
+          points: currentPoints,
+        },
+      ]);
+    }
+    setCurrentPoints([]);
+  };
+
   return (
-    <div className="bg-[#161b22] border border-gray-800 rounded-xl p-4 flex flex-col space-y-4">
-      {/* Chart Controls */}
+    <div className="bg-[#161b22] border border-gray-800 rounded-xl p-4 flex flex-col space-y-4 relative">
+      {/* Chart Controls Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
-        {/* Timeframe buttons */}
+        {/* Timeframe Buttons */}
         <div className="flex items-center space-x-1 bg-[#0d1117] p-1 rounded-lg border border-gray-800">
           {timeframes.map((tf) => (
             <button
@@ -57,7 +147,61 @@ export const SharedChart: React.FC<SharedChartProps> = ({
           ))}
         </div>
 
-        {/* Moving Average Toggles */}
+        {/* Chart View (Area vs Candlestick) */}
+        <div className="flex items-center space-x-1 bg-[#0d1117] p-1 rounded-lg border border-gray-800">
+          <button
+            onClick={() => setChartMode('area')}
+            className={`flex items-center space-x-1 px-2.5 py-1 rounded transition-colors ${
+              chartMode === 'area' ? 'bg-zinc-800 text-white font-semibold' : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <Activity size={12} />
+            <span>Area</span>
+          </button>
+          <button
+            onClick={() => setChartMode('candlestick')}
+            className={`flex items-center space-x-1 px-2.5 py-1 rounded transition-colors ${
+              chartMode === 'candlestick' ? 'bg-zinc-800 text-white font-semibold' : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <CandlestickChart size={12} />
+            <span>Candles</span>
+          </button>
+        </div>
+
+        {/* Technical Analysis Drawing Tools Toolbar */}
+        <div className="flex items-center space-x-1 bg-[#0d1117] p-1 rounded-lg border border-gray-800">
+          <button
+            title="Pencil Freehand"
+            onClick={() => setActiveTool(activeTool === 'pencil' ? 'none' : 'pencil')}
+            className={`p-1.5 rounded transition-colors ${
+              activeTool === 'pencil' ? 'bg-emerald-600 text-white' : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <Pencil size={13} />
+          </button>
+          <button
+            title="Trendline (Click & Drag)"
+            onClick={() => setActiveTool(activeTool === 'line' ? 'none' : 'line')}
+            className={`p-1.5 rounded transition-colors ${
+              activeTool === 'line' ? 'bg-emerald-600 text-white' : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <Slash size={13} />
+          </button>
+          <button
+            title="Clear All Drawings"
+            onClick={() => {
+              setDrawings([]);
+              setActiveTool('none');
+            }}
+            className="p-1.5 rounded text-gray-400 hover:text-rose-400 transition-colors"
+          >
+            <Eraser size={13} />
+          </button>
+        </div>
+
+        {/* Moving Average Overlays */}
         <div className="flex items-center space-x-2">
           <button
             onClick={() => setShowMA20(!showMA20)}
@@ -105,8 +249,8 @@ export const SharedChart: React.FC<SharedChartProps> = ({
         </div>
       </div>
 
-      {/* Recharts Canvas */}
-      <div className="h-72 w-full">
+      {/* Main Canvas with SVG Drawing Overlay */}
+      <div className="h-72 w-full relative">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
             <defs>
@@ -158,14 +302,25 @@ export const SharedChart: React.FC<SharedChartProps> = ({
                 radius={[2, 2, 0, 0]}
               />
             )}
-            <Area
-              type="monotone"
-              dataKey="close"
-              stroke="#10b981"
-              strokeWidth={1.75}
-              fillOpacity={1}
-              fill="url(#minimalGrad)"
-            />
+
+            {/* Mode 1: Area Mode */}
+            {chartMode === 'area' ? (
+              <Area
+                type="monotone"
+                dataKey="close"
+                stroke="#10b981"
+                strokeWidth={1.75}
+                fillOpacity={1}
+                fill="url(#minimalGrad)"
+              />
+            ) : (
+              /* Mode 2: Real Candlestick Bar Mode */
+              <Bar
+                dataKey="close"
+                shape={<CandlestickBar />}
+              />
+            )}
+
             {showMA20 && (
               <Line
                 type="monotone"
@@ -197,6 +352,58 @@ export const SharedChart: React.FC<SharedChartProps> = ({
             )}
           </ComposedChart>
         </ResponsiveContainer>
+
+        {/* Technical Drawing Canvas Layer */}
+        {activeTool !== 'none' && (
+          <svg
+            ref={svgRef}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            className="absolute inset-0 w-full h-full cursor-crosshair z-20"
+          >
+            {/* Render saved drawings */}
+            {drawings.map((d) => {
+              if (d.type === 'line' && d.points.length >= 2) {
+                return (
+                  <line
+                    key={d.id}
+                    x1={d.points[0].x}
+                    y1={d.points[0].y}
+                    x2={d.points[1].x}
+                    y2={d.points[1].y}
+                    stroke="#10b981"
+                    strokeWidth={2}
+                  />
+                );
+              }
+              const pathStr = d.points.reduce((acc, p, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`, '');
+              return <path key={d.id} d={pathStr} stroke="#38bdf8" strokeWidth={2} fill="none" />;
+            })}
+
+            {/* Currently drawing line */}
+            {isDrawing && currentPoints.length > 1 && (
+              activeTool === 'line' ? (
+                <line
+                  x1={currentPoints[0].x}
+                  y1={currentPoints[0].y}
+                  x2={currentPoints[1].x}
+                  y2={currentPoints[1].y}
+                  stroke="#10b981"
+                  strokeWidth={2}
+                  strokeDasharray="4 4"
+                />
+              ) : (
+                <path
+                  d={currentPoints.reduce((acc, p, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`, '')}
+                  stroke="#38bdf8"
+                  strokeWidth={2}
+                  fill="none"
+                />
+              )
+            )}
+          </svg>
+        )}
       </div>
     </div>
   );
