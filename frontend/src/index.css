@@ -4,47 +4,34 @@
 
 @layer base {
   body {
-    @apply bg-[#0b0e14] text-gray-200 antialiased font-sans min-h-screen selection:bg-purple-900 selection:text-white;
+    @apply bg-[#0d1117] text-gray-200 antialiased font-sans min-h-screen selection:bg-zinc-700 selection:text-white;
   }
 }
 
-/* Custom react-grid-layout styles */
-.react-grid-layout {
-  position: relative;
-  transition: height 200ms ease;
+/* Smooth continuous marquee animation */
+@keyframes marquee {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
 }
-.react-grid-item {
-  transition: all 200ms ease;
-  transition-property: left, top;
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 35s linear infinite;
 }
-.react-grid-item.cssTransforms {
-  transition-property: transform;
+
+.animate-marquee:hover {
+  animation-play-state: paused;
 }
-.react-grid-item.resizing {
-  z-index: 100;
-  box-sizing: border-box;
+
+/* Subtle fade-in animation for reactive dialogs */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
-.react-grid-item.react-draggable-dragging {
-  transition: none;
-  z-index: 100;
-}
-.react-grid-item > .react-resizable-handle {
-  position: absolute;
-  width: 20px;
-  height: 20px;
-  bottom: 0;
-  right: 0;
-  cursor: se-resize;
-}
-.react-grid-item > .react-resizable-handle::after {
-  content: "";
-  position: absolute;
-  right: 4px;
-  bottom: 4px;
-  width: 6px;
-  height: 6px;
-  border-right: 2px solid #6b7280;
-  border-bottom: 2px solid #6b7280;
+
+.animate-fadeIn {
+  animation: fadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* Scrollbar customization */
@@ -53,12 +40,12 @@
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #0f141c;
+  background: #0d1117;
 }
 ::-webkit-scrollbar-thumb {
-  background: #242c3d;
+  background: #21262d;
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3b465e;
+  background: #30363d;
 }

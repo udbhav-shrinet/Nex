@@ -17,7 +17,7 @@ interface ModelLabModuleProps {
 }
 
 export const ModelLabModule: React.FC<ModelLabModuleProps> = ({ ticker }) => {
-  const [model, setModel] = useState<'random_forest' | 'gradient_boosting' | 'extra_trees' | 'ridge' | 'elastic_net' | 'knn' | 'svr'>('random_forest');
+  const [model, setModel] = useState<'random_forest' | 'gradient_boosting' | 'extra_trees' | 'ridge' | 'elastic_net' | 'knn' | 'svr' | 'timesfm_inspired'>('timesfm_inspired');
   const [target, setTarget] = useState<'price_1d' | 'price_5d' | 'price_10d' | 'direction_1d'>('price_5d');
   const [timeframe, setTimeframe] = useState<'1Y' | '2Y' | '5Y'>('2Y');
   const [trainSplit, setTrainSplit] = useState(75);
@@ -100,6 +100,7 @@ export const ModelLabModule: React.FC<ModelLabModuleProps> = ({ ticker }) => {
               onChange={(e: any) => setModel(e.target.value)}
               className="w-full bg-[#0d1117] border border-gray-800 rounded-lg px-3 py-2 text-white"
             >
+              <option value="timesfm_inspired">TimesFM-Inspired Neural Foundation Forecaster</option>
               <option value="random_forest">Random Forest Regressor</option>
               <option value="gradient_boosting">Gradient Boosting (GBM)</option>
               <option value="extra_trees">Extra Trees Ensemble</option>

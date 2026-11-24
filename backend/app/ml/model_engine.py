@@ -135,6 +135,11 @@ def run_custom_ml_experiment(
     elif model_name == "svr":
         c_val = float(hyperparams.get("C", 1.0))
         model = SVR(C=c_val)
+    elif model_name == "timesfm_inspired":
+        # TimesFM-Inspired Chronological Multi-Layer Perceptron Auto-Regressive Engine
+        from sklearn.neural_network import MLPRegressor
+        hidden = hyperparams.get("hidden_layers", (64, 32))
+        model = MLPRegressor(hidden_layer_sizes=hidden, activation='relu', max_iter=250, random_state=42)
     else: # Default Random Forest
         n_est = int(hyperparams.get("n_estimators", 100))
         depth = int(hyperparams.get("max_depth", 6))
