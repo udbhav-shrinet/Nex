@@ -15,10 +15,65 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from 'recharts';
+import { Info, HelpCircle } from 'lucide-react';
 
 interface FinancialsModuleProps {
   ticker: string;
 }
+
+// Layman understandable definitions for financial terminology
+const GLOSSARY: Record<string, { term: string; layman: string; formula: string }> = {
+  marketCap: {
+    term: "Market Capitalization",
+    layman: "The total market price tag of the entire company if you bought every single share.",
+    formula: "Current Share Price × Total Outstanding Shares"
+  },
+  currentPrice: {
+    term: "Current Market Price (CMP)",
+    layman: "The live real-time rate at which shares are actively changing hands on the exchange.",
+    formula: "Latest Traded Price"
+  },
+  stockPE: {
+    term: "Price-to-Earnings Ratio (P/E)",
+    layman: "How many rupees you are paying for every ₹1 of profit the company makes. A lower P/E can mean a bargain or trouble; high can mean high future growth expectations.",
+    formula: "Market Share Price / Earnings Per Share (EPS)"
+  },
+  bookValue: {
+    term: "Book Value Per Share",
+    layman: "The net worth of the company per share on paper if it sold all physical assets and paid off every single debt today.",
+    formula: "(Total Assets - Total Liabilities) / Total Shares"
+  },
+  dividendYield: {
+    term: "Dividend Yield",
+    layman: "The percentage annual cash return paid straight to your bank account just for holding the stock, independent of share price jumps.",
+    formula: "(Annual Cash Dividend Per Share / Share Price) × 100"
+  },
+  roce: {
+    term: "Return on Capital Employed (ROCE)",
+    layman: "How efficiently the management turns invested capital (both shareholder money and debt loans) into operating profit. ROCE > 15% is typically considered high quality.",
+    formula: "EBIT / (Total Assets - Current Liabilities)"
+  },
+  roe: {
+    term: "Return on Equity (ROE)",
+    layman: "The profitability generated strictly on the shareholders' equity capital. Shows management's efficiency at compounding owner wealth.",
+    formula: "Net Profit After Tax / Total Shareholder Equity"
+  },
+  piotroskiF: {
+    term: "Piotroski F-Score",
+    layman: "A 9-point fundamental test score invented by Stanford Prof. Joseph Piotroski. Scores 7-9 indicate stellar financial health; under 3 indicates danger.",
+    formula: "Sum of 9 fundamental checks (Profitability, Leverage, Operating Efficiency)"
+  },
+  altmanZ: {
+    term: "Altman Z-Score",
+    layman: "A mathematical credit-strength formula predicting the likelihood of bankruptcy within 2 years. Scores > 3.0 mean the company sits comfortably in the safe zone.",
+    formula: "1.2(Working Capital/Assets) + 1.4(Retained Earnings/Assets) + 3.3(EBIT/Assets) + 0.6(Equity/Liabilities) + 1.0(Sales/Assets)"
+  },
+  cagr: {
+    term: "Compounded Annual Growth Rate (CAGR)",
+    layman: "The smoothed annual growth rate that gets an investment from its beginning balance to its ending balance over multiple years.",
+    formula: "(Ending Value / Beginning Value)^(1/Years) - 1"
+  }
+};
 
 export const FinancialsModule: React.FC<FinancialsModuleProps> = ({ ticker }) => {
   const [activeTab, setActiveTab] = useState<'screener' | 'financials' | 'stats' | 'calculator'>('screener');
@@ -27,6 +82,9 @@ export const FinancialsModule: React.FC<FinancialsModuleProps> = ({ ticker }) =>
   const [financials, setFinancials] = useState<any>(null);
   const [quantStats, setQuantStats] = useState<any>(null);
   const [corrMatrix, setCorrMatrix] = useState<any>(null);
+
+  // Active Tooltip Explanation
+  const [hoveredTerm, setHoveredTerm] = useState<{ term: string; layman: string; formula: string } | null>(null);
 
   // Calculator state
   const [calcType, setCalcType] = useState<'sip' | 'lumpsum' | 'emi' | 'fd'>('sip');
@@ -51,7 +109,23 @@ export const FinancialsModule: React.FC<FinancialsModuleProps> = ({ ticker }) =>
   }, [calcType, calcParams]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
+      {/* Interactive Floating Layman Definition HUD */}
+      {hoveredTerm && (
+        <div className="fixed bottom-6 right-6 z-50 max-w-sm bg-[#161b22] border border-emerald-500/40 p-4 rounded-xl shadow-2xl backdrop-blur-md animate-fadeIn">
+          <div className="flex items-center space-x-2 text-xs font-semibold text-emerald-400">
+            <Info size={14} />
+            <span>{hoveredTerm.term}</span>
+          </div>
+          <p className="text-xs text-gray-200 mt-1.5 leading-relaxed">
+            {hoveredTerm.layman}
+          </p>
+          <div className="mt-2.5 pt-2 border-t border-gray-800 text-[10px] font-mono text-gray-400">
+            <span className="text-emerald-400 font-semibold">Formula:</span> {hoveredTerm.formula}
+          </div>
+        </div>
+      )}
+
       {/* Module Navigation */}
       <div className="flex flex-wrap items-center justify-between border-b border-gray-800 pb-3 gap-2">
         <div className="flex items-center space-x-2 text-xs">
@@ -110,64 +184,129 @@ export const FinancialsModule: React.FC<FinancialsModuleProps> = ({ ticker }) =>
       {/* TAB 1: Screener.in Grade Overview */}
       {activeTab === 'screener' && ratios && (
         <div className="space-y-6">
-          {/* Top Screener Key Metrics Grid */}
+          {/* Top Screener Key Metrics Grid with Layman Tooltips */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            <div className="bg-[#161b22] border border-gray-800 rounded-xl p-3.5">
-              <span className="text-[11px] text-gray-400 block">Market Cap</span>
+            <div
+              onMouseEnter={() => setHoveredTerm(GLOSSARY.marketCap)}
+              onMouseLeave={() => setHoveredTerm(null)}
+              className="bg-[#161b22] border border-gray-800 hover:border-emerald-500/40 rounded-xl p-3.5 transition-colors cursor-help"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-gray-400">Market Cap</span>
+                <HelpCircle size={11} className="text-gray-500" />
+              </div>
               <span className="text-base font-bold font-mono text-white mt-1 block">
                 ₹{(ratios.screenerMetrics?.marketCap / 10000000).toLocaleString('en-IN', { maximumFractionDigits: 0 })} Cr.
               </span>
             </div>
-            <div className="bg-[#161b22] border border-gray-800 rounded-xl p-3.5">
-              <span className="text-[11px] text-gray-400 block">Current Price</span>
+
+            <div
+              onMouseEnter={() => setHoveredTerm(GLOSSARY.currentPrice)}
+              onMouseLeave={() => setHoveredTerm(null)}
+              className="bg-[#161b22] border border-gray-800 hover:border-emerald-500/40 rounded-xl p-3.5 transition-colors cursor-help"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-gray-400">Current Price</span>
+                <HelpCircle size={11} className="text-gray-500" />
+              </div>
               <span className="text-base font-bold font-mono text-white mt-1 block">
                 ₹{ratios.screenerMetrics?.currentPrice}
               </span>
             </div>
+
             <div className="bg-[#161b22] border border-gray-800 rounded-xl p-3.5">
               <span className="text-[11px] text-gray-400 block">High / Low</span>
               <span className="text-base font-bold font-mono text-white mt-1 block">
                 ₹{ratios.screenerMetrics?.high52w} / {ratios.screenerMetrics?.low52w}
               </span>
             </div>
-            <div className="bg-[#161b22] border border-gray-800 rounded-xl p-3.5">
-              <span className="text-[11px] text-gray-400 block">Stock P/E</span>
+
+            <div
+              onMouseEnter={() => setHoveredTerm(GLOSSARY.stockPE)}
+              onMouseLeave={() => setHoveredTerm(null)}
+              className="bg-[#161b22] border border-gray-800 hover:border-emerald-500/40 rounded-xl p-3.5 transition-colors cursor-help"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-gray-400">Stock P/E</span>
+                <HelpCircle size={11} className="text-gray-500" />
+              </div>
               <span className="text-base font-bold font-mono text-white mt-1 block">
                 {ratios.screenerMetrics?.stockPE || 'N/A'}
               </span>
             </div>
-            <div className="bg-[#161b22] border border-gray-800 rounded-xl p-3.5">
-              <span className="text-[11px] text-gray-400 block">Book Value</span>
+
+            <div
+              onMouseEnter={() => setHoveredTerm(GLOSSARY.bookValue)}
+              onMouseLeave={() => setHoveredTerm(null)}
+              className="bg-[#161b22] border border-gray-800 hover:border-emerald-500/40 rounded-xl p-3.5 transition-colors cursor-help"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-gray-400">Book Value</span>
+                <HelpCircle size={11} className="text-gray-500" />
+              </div>
               <span className="text-base font-bold font-mono text-white mt-1 block">
                 ₹{ratios.screenerMetrics?.bookValue || 'N/A'}
               </span>
             </div>
-            <div className="bg-[#161b22] border border-gray-800 rounded-xl p-3.5">
-              <span className="text-[11px] text-gray-400 block">Dividend Yield</span>
+
+            <div
+              onMouseEnter={() => setHoveredTerm(GLOSSARY.dividendYield)}
+              onMouseLeave={() => setHoveredTerm(null)}
+              className="bg-[#161b22] border border-gray-800 hover:border-emerald-500/40 rounded-xl p-3.5 transition-colors cursor-help"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-gray-400">Dividend Yield</span>
+                <HelpCircle size={11} className="text-gray-500" />
+              </div>
               <span className="text-base font-bold font-mono text-white mt-1 block">
                 {ratios.screenerMetrics?.dividendYield !== null ? `${ratios.screenerMetrics.dividendYield}%` : 'N/A'}
               </span>
             </div>
-            <div className="bg-[#161b22] border border-gray-800 rounded-xl p-3.5">
-              <span className="text-[11px] text-gray-400 block">ROCE</span>
+
+            <div
+              onMouseEnter={() => setHoveredTerm(GLOSSARY.roce)}
+              onMouseLeave={() => setHoveredTerm(null)}
+              className="bg-[#161b22] border border-gray-800 hover:border-emerald-500/40 rounded-xl p-3.5 transition-colors cursor-help"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-gray-400">ROCE</span>
+                <HelpCircle size={11} className="text-gray-500" />
+              </div>
               <span className="text-base font-bold font-mono text-emerald-400 mt-1 block">
                 {ratios.screenerMetrics?.roce ? `${ratios.screenerMetrics.roce}%` : 'N/A'}
               </span>
             </div>
-            <div className="bg-[#161b22] border border-gray-800 rounded-xl p-3.5">
-              <span className="text-[11px] text-gray-400 block">ROE</span>
+
+            <div
+              onMouseEnter={() => setHoveredTerm(GLOSSARY.roe)}
+              onMouseLeave={() => setHoveredTerm(null)}
+              className="bg-[#161b22] border border-gray-800 hover:border-emerald-500/40 rounded-xl p-3.5 transition-colors cursor-help"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-gray-400">ROE</span>
+                <HelpCircle size={11} className="text-gray-500" />
+              </div>
               <span className="text-base font-bold font-mono text-emerald-400 mt-1 block">
                 {ratios.screenerMetrics?.roe ? `${ratios.screenerMetrics.roe}%` : 'N/A'}
               </span>
             </div>
+
             <div className="bg-[#161b22] border border-gray-800 rounded-xl p-3.5">
               <span className="text-[11px] text-gray-400 block">Face Value</span>
               <span className="text-base font-bold font-mono text-white mt-1 block">
                 ₹{ratios.screenerMetrics?.faceValue}
               </span>
             </div>
-            <div className="bg-[#161b22] border border-gray-800 rounded-xl p-3.5">
-              <span className="text-[11px] text-gray-400 block">Piotroski Score</span>
+
+            <div
+              onMouseEnter={() => setHoveredTerm(GLOSSARY.piotroskiF)}
+              onMouseLeave={() => setHoveredTerm(null)}
+              className="bg-[#161b22] border border-gray-800 hover:border-emerald-500/40 rounded-xl p-3.5 transition-colors cursor-help"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-gray-400">Piotroski Score</span>
+                <HelpCircle size={11} className="text-gray-500" />
+              </div>
               <span className="text-base font-bold font-mono text-emerald-400 mt-1 block">
                 {ratios.institutionalModels?.piotroskiF?.score} / 9
               </span>

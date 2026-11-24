@@ -65,6 +65,7 @@ def build_causal_news_chain(ticker: str, market: str = "NSE") -> Dict[str, Any]:
             "timestamp": event_time,
             "confidence": confidence,
             "tags": tags,
+            "sentiment": art.get("sentiment", {"label": "Neutral", "score": 0.0, "color": "#9ca3af"}),
             "summary": f"Transmission via {rel_type} mechanism. Correlated with institutional order flows in {ticker.upper()}."
         })
 

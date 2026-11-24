@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { fetchLiveBoardMacro, fetchMarketMood, fetchTreemapAndMovers } from '../services/api';
-import { TrendingUp, TrendingDown, ShieldCheck } from 'lucide-react';
+import { TrendingUp, TrendingDown, ShieldCheck, ArrowRight } from 'lucide-react';
 
 interface LiveBoardModuleProps {
   onSelectTicker: (t: string) => void;
@@ -11,6 +11,8 @@ export const LiveBoardModule: React.FC<LiveBoardModuleProps> = ({ onSelectTicker
   const [mood, setMood] = useState<any>(null);
   const [boardData, setBoardData] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'treemap' | 'gainers' | 'losers' | 'volume'>('treemap');
+  
+  // Floating Hover Quick-Ratio Dialog Box
   const [hoveredCard, setHoveredCard] = useState<any | null>(null);
 
   useEffect(() => {
@@ -28,7 +30,7 @@ export const LiveBoardModule: React.FC<LiveBoardModuleProps> = ({ onSelectTicker
   }, []);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
       {/* 1. Macro Strip */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {macro.map((item) => {
@@ -105,7 +107,7 @@ export const LiveBoardModule: React.FC<LiveBoardModuleProps> = ({ onSelectTicker
         )}
       </div>
 
-      {/* 3. Heatmap & Tabbed Movers with Fast Hover Quick-Stats */}
+      {/* 3. Heatmap & Tabbed Movers with Hover Dialog Box */}
       <div className="bg-[#161b22] border border-gray-800 rounded-xl p-5 relative">
         <div className="flex flex-wrap items-center justify-between border-b border-gray-800 pb-3 gap-2">
           <div className="flex items-center space-x-2 text-xs">
@@ -142,22 +144,11 @@ export const LiveBoardModule: React.FC<LiveBoardModuleProps> = ({ onSelectTicker
               Volume Leaders
             </button>
           </div>
-
-          {hoveredCard && (
-            <div className="text-xs font-mono text-gray-300 bg-[#0d1117] px-3 py-1 rounded border border-gray-800 flex items-center space-x-3">
-              <span className="font-bold text-white">{hoveredCard.symbol}</span>
-              <span>₹{hoveredCard.price}</span>
-              <span className={hoveredCard.changePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
-                {hoveredCard.changePercent >= 0 ? '+' : ''}{hoveredCard.changePercent}%
-              </span>
-              <span className="text-gray-500">Vol: {(hoveredCard.volume / 1000).toFixed(0)}k</span>
-            </div>
-          )}
         </div>
 
-        {/* Tab 1: Treemap Heatmap with fast hover preview */}
+        {/* Tab 1: Treemap Heatmap with Reactive Hover Dialog Box */}
         {activeTab === 'treemap' && boardData?.treemap && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3 mt-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3 mt-4 relative">
             {boardData.treemap.map((item: any) => {
               const isPos = item.changePercent >= 0;
               const bgIntensity = isPos
@@ -184,6 +175,45 @@ export const LiveBoardModule: React.FC<LiveBoardModuleProps> = ({ onSelectTicker
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Reactive Floating Quick-Ratio Modal Dialog on Hover */}
+        {hoveredCard && (
+          <div className="absolute top-16 right-6 z-40 bg-[#0d1117] border border-emerald-500/30 rounded-xl p-4 shadow-2xl w-64 backdrop-blur-md animate-fadeIn pointer-events-none">
+            <div className="flex justify-between items-start border-b border-gray-800 pb-2">
+              <div>
+                <span className="font-mono font-bold text-sm text-white">{hoveredCard.symbol}</span>
+                <p className="text-[11px] text-gray-400">{hoveredCard.name}</p>
+              </div>
+              <span className={`font-mono font-bold text-xs ${hoveredCard.changePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {hoveredCard.changePercent >= 0 ? '+' : ''}{hoveredCard.changePercent}%
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 mt-2 text-xs font-mono">
+              <div className="bg-[#161b22] p-2 rounded">
+                <span className="text-[10px] text-gray-400 block font-sans">Price</span>
+                <span className="text-white font-bold">₹{hoveredCard.price}</span>
+              </div>
+              <div className="bg-[#161b22] p-2 rounded">
+                <span className="text-[10px] text-gray-400 block font-sans">Index Weight</span>
+                <span className="text-emerald-400 font-bold">{hoveredCard.weight}%</span>
+              </div>
+              <div className="bg-[#161b22] p-2 rounded">
+                <span className="text-[10px] text-gray-400 block font-sans">24h Vol</span>
+                <span className="text-gray-300">{(hoveredCard.volume / 1000).toFixed(0)}k</span>
+              </div>
+              <div className="bg-[#161b22] p-2 rounded">
+                <span className="text-[10px] text-gray-400 block font-sans">Sector</span>
+                <span className="text-gray-300 truncate block text-[10px]">{hoveredCard.sector}</span>
+              </div>
+            </div>
+
+            <p className="text-[10px] text-gray-500 mt-2.5 flex items-center justify-between">
+              <span>Click to view detailed metrics</span>
+              <ArrowRight size={10} className="text-emerald-400" />
+            </p>
           </div>
         )}
 

@@ -10,10 +10,8 @@ export const NewsChainModule: React.FC<NewsChainModuleProps> = ({ ticker }) => {
   const [chainData, setChainData] = useState<any>(null);
   const [liveArticles, setLiveArticles] = useState<any[]>([]);
   const [filterTag, setFilterTag] = useState<string>('all');
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setLoading(true);
     Promise.all([
       fetchNewsChain(ticker),
       fetchLiveNews('all', ticker),
@@ -22,8 +20,7 @@ export const NewsChainModule: React.FC<NewsChainModuleProps> = ({ ticker }) => {
         setChainData(chain);
         setLiveArticles(news);
       })
-      .catch(console.error)
-      .finally(() => setLoading(false));
+      .catch(console.error);
   }, [ticker]);
 
   const filteredNews = liveArticles.filter(
@@ -79,6 +76,11 @@ export const NewsChainModule: React.FC<NewsChainModuleProps> = ({ ticker }) => {
                       }`}>
                         {item.confidence}
                       </span>
+                      {item.sentiment && (
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded" style={{ backgroundColor: `${item.sentiment.color}15`, color: item.sentiment.color }}>
+                          {item.sentiment.label} ({item.sentiment.score > 0 ? `+${item.sentiment.score}` : item.sentiment.score})
+                        </span>
+                      )}
                     </div>
                     <span className="text-gray-500 text-[11px] font-mono">{item.timestamp}</span>
                   </div>
@@ -108,10 +110,12 @@ export const NewsChainModule: React.FC<NewsChainModuleProps> = ({ ticker }) => {
         )}
       </div>
 
-      {/* Real-time Filterable Feed */}
+      {/* Real-time Filterable Feed with VADER Quant Sentiment Chips */}
       <div className="bg-[#161b22] border border-gray-800 rounded-xl p-5 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-800 pb-3">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">Targeted News Feed</h3>
+          <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">
+            Targeted News Feed with Sentiment Polarity
+          </h3>
           <div className="flex items-center space-x-1 text-[11px]">
             {['all', 'Bullish', 'Bearish', 'Regulatory', 'Macro', 'Earnings'].map((tag) => (
               <button
@@ -145,9 +149,21 @@ export const NewsChainModule: React.FC<NewsChainModuleProps> = ({ ticker }) => {
                   <span>{art.pubDate}</span>
                 </div>
               </div>
-              <div className="flex space-x-1 shrink-0">
+              <div className="flex items-center space-x-1.5 shrink-0 font-mono text-[10px]">
+                {art.sentiment && (
+                  <span
+                    className="px-2 py-0.5 rounded font-semibold border"
+                    style={{
+                      borderColor: `${art.sentiment.color}30`,
+                      backgroundColor: `${art.sentiment.color}15`,
+                      color: art.sentiment.color
+                    }}
+                  >
+                    {art.sentiment.label} {art.sentiment.score > 0 ? `+${art.sentiment.score}` : art.sentiment.score}
+                  </span>
+                )}
                 {art.tags?.map((t: string) => (
-                  <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-gray-800 text-gray-400 font-mono">
+                  <span key={t} className="px-1.5 py-0.5 rounded bg-zinc-800 text-gray-400">
                     {t}
                   </span>
                 ))}

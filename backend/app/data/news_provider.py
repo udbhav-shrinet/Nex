@@ -6,6 +6,13 @@ import urllib.parse
 from typing import List, Dict, Any, Optional
 from app.core.cache import get_cached, set_cached, get_stale_fallback
 
+# Initialize VADER sentiment analyzer
+try:
+    from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+    vader_analyzer = SentimentIntensityAnalyzer()
+except ImportError:
+    vader_analyzer = None
+
 FEEDS = [
     {
         "name": "Economic Times Markets",
@@ -29,30 +36,65 @@ FEEDS = [
     }
 ]
 
-def classify_tags(title: str, summary: str) -> List[str]:
-    text = (title + " " + summary).lower()
+def analyze_sentiment_and_tags(title: str, summary: str) -> Dict[str, Any]:
+    text = f"{title}. {summary}".strip()
+    text_lower = text.lower()
+    
+    # Quantitative Sentiment Score via VADER
+    compound = 0.0
+    pos_score = 0.0
+    neg_score = 0.0
+    neu_score = 1.0
+    
+    if vader_analyzer:
+        vs = vader_analyzer.polarity_scores(text)
+        compound = round(vs["compound"], 3)
+        pos_score = round(vs["pos"], 3)
+        neg_score = round(vs["neg"], 3)
+        neu_score = round(vs["neu"], 3)
+
+    if compound >= 0.05:
+        sentiment_label = "Bullish"
+        sentiment_color = "#10b981"
+    elif compound <= -0.05:
+        sentiment_label = "Bearish"
+        sentiment_color = "#f43f5e"
+    else:
+        sentiment_label = "Neutral"
+        sentiment_color = "#9ca3af"
+
     tags = []
-    if any(k in text for k in ["surge", "rally", "bull", "jump", "high", "gain", "profit", "record", "growth", "boost"]):
+    if any(k in text_lower for k in ["surge", "rally", "bull", "jump", "high", "gain", "profit", "record", "growth", "boost"]):
         tags.append("Bullish")
-    if any(k in text for k in ["crash", "drop", "plunge", "bear", "down", "fall", "loss", "decline", "warn", "slump"]):
+    if any(k in text_lower for k in ["crash", "drop", "plunge", "bear", "down", "fall", "loss", "decline", "warn", "slump"]):
         tags.append("Bearish")
-    if any(k in text for k in ["sec", "rbi", "sebi", "court", "law", "rule", "regulat", "ban", "policy", "tax", "govt"]):
+    if any(k in text_lower for k in ["sec", "rbi", "sebi", "court", "law", "rule", "regulat", "ban", "policy", "tax", "govt"]):
         tags.append("Regulatory")
-    if any(k in text for k in ["q1", "q2", "q3", "q4", "quarter", "revenue", "ebitda", "earnings", "dividend", "profit"]):
+    if any(k in text_lower for k in ["q1", "q2", "q3", "q4", "quarter", "revenue", "ebitda", "earnings", "dividend", "profit"]):
         tags.append("Earnings")
-    if any(k in text for k in ["inflation", "gdp", "rate hike", "fed", "central bank", "tariffs", "war", "crude", "oil", "gold"]):
+    if any(k in text_lower for k in ["inflation", "gdp", "rate hike", "fed", "central bank", "tariffs", "war", "crude", "oil", "gold"]):
         tags.append("Macro")
-    return tags if tags else ["General"]
+    if not tags:
+        tags.append("General")
+
+    return {
+        "tags": tags,
+        "sentiment": {
+            "label": sentiment_label,
+            "score": compound,
+            "color": sentiment_color,
+            "breakdown": {"positive": pos_score, "negative": neg_score, "neutral": neu_score}
+        }
+    }
 
 def get_live_news(feed_type: Optional[str] = None, keyword: Optional[str] = None) -> Dict[str, Any]:
-    cache_key = f"news_v3:{feed_type or 'all'}:{keyword or 'none'}"
+    cache_key = f"news_sentiment_v1:{feed_type or 'all'}:{keyword or 'none'}"
     cached = get_cached(cache_key)
     if cached:
         return {"data": cached, "stale": False}
 
     articles = []
 
-    # If keyword is provided, query Google News RSS specifically for that ticker/company!
     if keyword and len(keyword.strip()) > 1:
         kw = keyword.strip()
         encoded = urllib.parse.quote(f"{kw} stock financial")
@@ -65,20 +107,20 @@ def get_live_news(feed_type: Optional[str] = None, keyword: Optional[str] = None
                 pub_date = entry.get("published", "") or entry.get("updated", "")
                 summary = entry.get("summary", "")
                 source_title = entry.get("source", {}).get("title", "Google News")
-                tags = classify_tags(title, summary)
+                sent_data = analyze_sentiment_and_tags(title, summary)
                 articles.append({
                     "title": title,
                     "link": link,
                     "pubDate": pub_date,
                     "source": source_title,
                     "category": "targeted",
-                    "tags": tags,
+                    "tags": sent_data["tags"],
+                    "sentiment": sent_data["sentiment"],
                     "summary": summary
                 })
         except Exception as e:
             print(f"[News Aggregator] Error fetching targeted Google News for {keyword}: {e}")
 
-    # Also parse standard feeds
     selected_feeds = [f for f in FEEDS if feed_type is None or f["type"] == feed_type or feed_type == "all"]
     for feed_info in selected_feeds:
         try:
@@ -94,21 +136,21 @@ def get_live_news(feed_type: Optional[str] = None, keyword: Optional[str] = None
                     if kw_lower not in title.lower() and kw_lower not in summary.lower():
                         continue
 
-                tags = classify_tags(title, summary)
+                sent_data = analyze_sentiment_and_tags(title, summary)
                 articles.append({
                     "title": title,
                     "link": link,
                     "pubDate": pub_date,
                     "source": feed_info["name"],
                     "category": feed_info["type"],
-                    "tags": tags,
+                    "tags": sent_data["tags"],
+                    "sentiment": sent_data["sentiment"],
                     "summary": summary
                 })
         except Exception as e:
             print(f"[News Aggregator] Error fetching {feed_info['name']}: {e}")
 
     if not articles:
-        # Fallback to general market news if keyword filter was too strict
         stale = get_stale_fallback(cache_key)
         if stale:
             return stale
@@ -116,7 +158,6 @@ def get_live_news(feed_type: Optional[str] = None, keyword: Optional[str] = None
             return get_live_news(feed_type=feed_type, keyword=None)
         return {"data": [], "stale": False}
 
-    # Deduplicate
     seen = set()
     deduped = []
     for a in articles:
